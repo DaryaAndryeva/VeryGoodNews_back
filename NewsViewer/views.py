@@ -19,10 +19,11 @@ class NewsViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         filtered_queryset = self.queryset
+
         start_date = self.request.query_params.get('start_date')
         end_date = self.request.query_params.get('end_date')
         keyword = self.request.query_params.get('keyword')
-        source_id = self.request.query_params.get('source')
+        source_ids = self.request.query_params.get('source')
 
         if start_date:
             filtered_queryset = filtered_queryset.filter(publication_date__gte=start_date)
@@ -30,9 +31,10 @@ class NewsViewSet(viewsets.ModelViewSet):
         if end_date:
             filtered_queryset = filtered_queryset.filter(publication_date__lte=end_date)
 
-        if source_id:
-            filtered_queryset = filtered_queryset.filter(source__id=source_id)
-
+        if source_ids:
+            source_id_list = [int(id.strip()) for id in source_ids.split(',') if id.strip().isdigit()]
+            filtered_queryset = filtered_queryset.filter(source__id__in=source_id_list)
+        
         if keyword:
             text = keyword
             doc = Doc(text)
@@ -53,7 +55,7 @@ class NewsViewSet(viewsets.ModelViewSet):
                 )
             ).filter(relevance__gt=0).order_by('-relevance', 'source__name')
         else:
-            filtered_queryset = filtered_queryset.order_by('source__name')
+            filtered_queryset = filtered_queryset.order_by('-publication_date')
 
         return filtered_queryset
 

@@ -45,8 +45,10 @@ def scrape():
     current_hour = datetime.now().replace(minute=0, second=0, microsecond=0)
 
     for item in data:
-        title = item['body']
-        title = title[3:-5]
+        title_html = item['body']
+        title_soup = BeautifulSoup(title_html, 'html.parser')
+        title = title_soup.get_text()
+        print(title)
         link = 'https://tass.ru' + item['content_url']
         publication_time = datetime.fromisoformat(item['published_dt']) + timedelta(hours=3)
         if current_hour - publication_time > timedelta(hours=2):
