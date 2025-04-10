@@ -1,24 +1,11 @@
 # 'https://rg.ru/news.html'
-# DONE
-from datetime import datetime, timedelta
+
+from datetime import datetime, timedelta, timezone
 import time
 import requests
-import json
 from bs4 import BeautifulSoup
-from natasha import Segmenter, NewsEmbedding, NewsMorphTagger, MorphVocab, Doc
+from .scrape_utils import TIMEDELTA, LemmatizeText
 
-segmenter = Segmenter()
-emb = NewsEmbedding()
-morph_tagger = NewsMorphTagger(emb)
-morph_vocab = MorphVocab()
-
-def LemmatizeText(text):
-    doc = Doc(text)
-    doc.segment(segmenter)
-    doc.tag_morph(morph_tagger)
-    for token in doc.tokens:
-        token.lemmatize(morph_vocab)
-    return " ".join([token.lemma if token.lemma else token.text for token in doc.tokens])
 
 def GetText(link):
     response = requests.get(link)
@@ -46,18 +33,20 @@ def scrape():
     texts = []
     dates = []
 
-    today_midnight = datetime.now().replace(minute=0, second=0, microsecond=0)
-    last_news_date = today_midnight
+    utc_now = datetime.now(timezone.utc).replace(minute=0, second=0, microsecond=0)
+    last_news_date = utc_now
 
-    while (today_midnight - last_news_date) < timedelta(hours=2):
+    while (utc_now - last_news_date) < TIMEDELTA:
         for item in data:
             title = item['_source']['link_title']
             link = 'https://rg.ru' + item['_source']['url']
-            publication_time = datetime.fromtimestamp(item['_source']['publish_at'])
+            publication_time = datetime.fromtimestamp(item['_source']['publish_at']) - timedelta(hours=3)
+            publication_time = publication_time.replace(tzinfo=timezone.utc)
+
             text = LemmatizeText(title + " " + GetText(link))
 
             last_news_date = min(last_news_date, publication_time)
-            if today_midnight - publication_time > timedelta(hours=2):
+            if utc_now - publication_time > TIMEDELTA:
                 break
 
             titles.append(title)

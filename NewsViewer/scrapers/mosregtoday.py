@@ -1,22 +1,10 @@
 #'https://mosregtoday.ru/news/'
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import requests
 from bs4 import BeautifulSoup
-from natasha import Segmenter, NewsEmbedding, NewsMorphTagger, MorphVocab, Doc
+from .scrape_utils import TIMEDELTA, LemmatizeText
 
-segmenter = Segmenter()
-emb = NewsEmbedding()
-morph_tagger = NewsMorphTagger(emb)
-morph_vocab = MorphVocab()
-
-def LemmatizeText(text):
-    doc = Doc(text)
-    doc.segment(segmenter)
-    doc.tag_morph(morph_tagger)
-    for token in doc.tokens:
-        token.lemmatize(morph_vocab)
-    return " ".join([token.lemma if token.lemma else token.text for token in doc.tokens])
 
 def GetText(link):
     response = requests.get(link)
@@ -31,7 +19,6 @@ def GetText(link):
             text += part
     return text
 
-DELTA = timedelta(hours=2)
 
 def scrape():
     URL = 'https://mosregtoday.ru/news/page/' 
@@ -48,10 +35,10 @@ def scrape():
     texts = []
     dates = []
 
-    current_hour = datetime.now().replace(minute=0, second=0, microsecond=0)
-    last_news_date = current_hour
+    utc_now = datetime.now(timezone.utc).replace(minute=0, second=0, microsecond=0)
+    last_news_date = utc_now
 
-    while current_hour - last_news_date < DELTA:
+    while utc_now - last_news_date < TIMEDELTA:
         response = requests.get(URL + str(page))
         if response.status_code != 200:
             return []
@@ -61,17 +48,18 @@ def scrape():
         for article in soup.select('a > article'):
             title_tag = article.find('h2')
             title = title_tag.text.strip()
+            title = title.replace('\xa0', ' ')
             link_tag = article.find_parent('a')
-            link = link_tag['href']
+            link = 'https://mosregtoday.ru' + link_tag['href']
             time_tag = article.find('time')
-            publication_time =  datetime.strptime(time_tag['datetime'], '%Y-%m-%dT%H:%M%z')
-            publication_time = publication_time.replace(tzinfo=None)
+            publication_time =  datetime.strptime(time_tag['datetime'], '%Y-%m-%dT%H:%M%z') - timedelta(hours = 3)
+            publication_time = publication_time.replace(tzinfo=timezone.utc)
             last_news_date = publication_time
 
-            if (current_hour - publication_time > DELTA):
+            if (utc_now - publication_time > TIMEDELTA):
                 break
 
-            text =  GetText('https://mosregtoday.ru' + link)
+            text =  GetText(link)
             text = LemmatizeText(title + text)
 
             titles.append(title)

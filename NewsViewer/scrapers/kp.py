@@ -1,24 +1,9 @@
 #'https://www.msk.kp.ru/online/'
-#DONE
-from datetime import datetime, timedelta
+
+from datetime import datetime, timedelta, timezone
 import requests
-import json
 from bs4 import BeautifulSoup
-from natasha import Segmenter, NewsEmbedding, NewsMorphTagger, MorphVocab, Doc
-
-segmenter = Segmenter()
-emb = NewsEmbedding()
-morph_tagger = NewsMorphTagger(emb)
-morph_vocab = MorphVocab()
-
-def LemmatizeText(text):
-    doc = Doc(text)
-    doc.segment(segmenter)
-    doc.tag_morph(morph_tagger)
-    for token in doc.tokens:
-        token.lemmatize(morph_vocab)
-    return " ".join([token.lemma if token.lemma else token.text for token in doc.tokens])
-
+from .scrape_utils import TIMEDELTA, LemmatizeText
 
 def GetText(id):
     link = 'https://s02.api.yc.kpcdn.net/content/api/1/pages/get.json?pages.direction=page&pages.target.class=10&pages.target.id=' + str(id)
@@ -51,14 +36,17 @@ def scrape():
     texts = []
     dates = []
 
-    current_hour = datetime.now().replace(minute=0, second=0, microsecond=0)
+    utc_now = datetime.now(timezone.utc).replace(minute=0, second=0, microsecond=0)
 
     for item in data:
         title = item['ru']['title']
         link = 'https://www.msk.kp.ru/online/news/' + str(item['@id'])
         publication_time = next((cur['value'] for cur in item['meta'] if cur['name'] == 'published'), None)
-        publication_time = datetime.fromisoformat(publication_time)
-        if current_hour - publication_time > timedelta(hours=2):
+        publication_time = datetime.fromisoformat(publication_time) - timedelta(hours = 3)
+        publication_time = publication_time.replace(tzinfo=timezone.utc)
+
+
+        if utc_now - publication_time > TIMEDELTA:
             break
         
         text = LemmatizeText(title + " " + GetText(item['@id']))

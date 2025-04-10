@@ -1,14 +1,14 @@
 import pytz
 from django.utils import timezone
 from .models import News, Source
-from .scrapers import kp, mn, rg, tass, lenta
+from .scrapers import kp, mn, rg, tass, lenta, mosregtoday, mos_ru
 
 def add_to_db(all_news, source):
     for news in all_news:
         if not News.objects.filter(url = news['link']):
             News.objects.create(
                 url = news['link'],
-                publication_date = timezone.make_aware(news['date']),
+                publication_date = news['date'],
                 source = source,
                 title = news['title'],
                 content = news['text']
@@ -42,7 +42,13 @@ def scrape_lenta():
 def scrape_mosregtoday():
     all_news = mosregtoday.scrape()
     source, created = Source.objects.get_or_create(name = 'Подмосковье Сегодня', url = 'https://mosregtoday.ru/news/')
+    add_to_db(all_news, source)
 
+def scrape_mos_ru():
+    all_news = mos_ru.scrape()
+    source, created = Source.objects.get_or_create(name = 'mos.ru', url = 'https://www.mos.ru/news/')
+    add_to_db(all_news, source)
+    
 def job():
     scrape_kp()
     scrape_mn()
@@ -50,4 +56,5 @@ def job():
     scrape_rg()
     scrape_lenta()
     scrape_mosregtoday()
+    scrape_mos_ru()
     

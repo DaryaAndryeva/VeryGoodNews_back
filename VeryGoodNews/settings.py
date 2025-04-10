@@ -35,7 +35,6 @@ ALLOWED_HOSTS = [
 
 CRONJOBS = [
     ('0 * * * *', 'NewsViewer.cron.job'),
-    # ('0 0 * * *', 'NewsViewer.autodelete.job')
 ]
 CORS_ALLOW_ALL_ORIGINS = True
 

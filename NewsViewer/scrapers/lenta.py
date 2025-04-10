@@ -1,22 +1,9 @@
 'https://lenta.ru/parts/news/'
-#DONE
-from datetime import datetime, timedelta
+
+from datetime import datetime, timedelta, timezone
 import requests
 from bs4 import BeautifulSoup
-from natasha import Segmenter, NewsEmbedding, NewsMorphTagger, MorphVocab, Doc
-
-segmenter = Segmenter()
-emb = NewsEmbedding()
-morph_tagger = NewsMorphTagger(emb)
-morph_vocab = MorphVocab()
-
-def LemmatizeText(text):
-    doc = Doc(text)
-    doc.segment(segmenter)
-    doc.tag_morph(morph_tagger)
-    for token in doc.tokens:
-        token.lemmatize(morph_vocab)
-    return " ".join([token.lemma if token.lemma else token.text for token in doc.tokens])
+from .scrape_utils import TIMEDELTA, LemmatizeText
 
 def GetText(link):
     response = requests.get(link)
@@ -43,14 +30,15 @@ def scrape():
     texts = []
     dates = []
 
-    current_hour = datetime.now().replace(minute=0, second=0, microsecond=0)
+    utc_now = datetime.now(timezone.utc).replace(minute=0, second=0, microsecond=0)
 
     for item in data:
         title = item['headline']['info']['title']
         link = item['headline']['links']['public']
-        publication_time = datetime.fromtimestamp(item['headline']['info']['modified_at'])
-        
-        if current_hour - publication_time > timedelta(hours=2):
+        publication_time = datetime.fromtimestamp(item['headline']['info']['modified_at']) - timedelta(hours = 3)
+        publication_time = publication_time.replace(tzinfo=timezone.utc)
+
+        if utc_now - publication_time > TIMEDELTA:
             break
         if not link.startswith('https://lenta.ru'):
             continue

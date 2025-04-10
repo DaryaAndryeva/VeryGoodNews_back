@@ -1,22 +1,8 @@
 #'https://www.mn.ru/short'
-#DONE
-from datetime import datetime, timedelta
+
+from datetime import datetime, timedelta, timezone
 import requests
-import json
-from natasha import Segmenter, NewsEmbedding, NewsMorphTagger, MorphVocab, Doc
-
-segmenter = Segmenter()
-emb = NewsEmbedding()
-morph_tagger = NewsMorphTagger(emb)
-morph_vocab = MorphVocab()
-
-def LemmatizeText(text):
-    doc = Doc(text)
-    doc.segment(segmenter)
-    doc.tag_morph(morph_tagger)
-    for token in doc.tokens:
-        token.lemmatize(morph_vocab)
-    return " ".join([token.lemma if token.lemma else token.text for token in doc.tokens])
+from .scrape_utils import TIMEDELTA, LemmatizeText
 
 
 def scrape():
@@ -33,18 +19,21 @@ def scrape():
     texts = []
     dates = []
 
-    today_midnight = datetime.now().replace(minute=0, second=0, microsecond=0)
-    last_news_date = today_midnight
+    utc_now = datetime.now(timezone.utc).replace(minute=0, second=0, microsecond=0)
+    last_news_date = utc_now
 
-    while (today_midnight - last_news_date) < timedelta(hours = 2):
+    while (utc_now - last_news_date) < TIMEDELTA:
         for item in data:
             title = item['attributes']['title']
             link = item['attributes']['url']
-            publication_time = datetime.strptime(item['attributes']['published_at'], "%Y-%m-%dT%H:%M:%S.%fZ") + timedelta(hours = 3)
-            text = LemmatizeText(title + " " + item['attributes']['content']) #-- текст новости в формате html
+            publication_time = datetime.strptime(item['attributes']['published_at'], "%Y-%m-%dT%H:%M:%S.%fZ")
+            publication_time = publication_time.replace(tzinfo=timezone.utc)
+
+
+            text = LemmatizeText(title + " " + item['attributes']['content']) 
 
             last_news_date = min(last_news_date, publication_time)
-            if today_midnight - publication_time > timedelta(hours=2):
+            if utc_now - publication_time > TIMEDELTA:
                 break
 
             titles.append(title)
