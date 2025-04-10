@@ -5,13 +5,13 @@ from .scrapers import kp, mn, rg, tass, lenta
 
 def add_to_db(all_news, source):
     for news in all_news:
-        if not News.objects.filter(url = news["link"]):
+        if not News.objects.filter(url = news['link']):
             News.objects.create(
-                url = news["link"],
-                publication_date = timezone.make_aware(news["date"]),
+                url = news['link'],
+                publication_date = timezone.make_aware(news['date']),
                 source = source,
-                title = news["title"],
-                content = news["text"]
+                title = news['title'],
+                content = news['text']
             )
 
 def scrape_kp():
@@ -39,9 +39,15 @@ def scrape_lenta():
     source, created = Source.objects.get_or_create(name = 'Лента', url = 'https://lenta.ru/parts/news/')
     add_to_db(all_news, source)
 
+def scrape_mosregtoday():
+    all_news = mosregtoday.scrape()
+    source, created = Source.objects.get_or_create(name = 'Подмосковье Сегодня', url = 'https://mosregtoday.ru/news/')
+
 def job():
     scrape_kp()
     scrape_mn()
     scrape_tass()
     scrape_rg()
     scrape_lenta()
+    scrape_mosregtoday()
+    
